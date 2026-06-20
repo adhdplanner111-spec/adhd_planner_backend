@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+
+.env
+serviceAccountKey.json
+
+.idea/
+.vscode/
+
+*.log
+
+uploads/
+
+.firebase/
+
+*.sqlite3
