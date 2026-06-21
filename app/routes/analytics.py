@@ -174,3 +174,4 @@ def weekly(
         "success": True,
         "data": weekly_data
     }
+    

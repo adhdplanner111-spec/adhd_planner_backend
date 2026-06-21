@@ -239,7 +239,6 @@ def resend_otp(
 
         pending = doc.to_dict()
 
-        # generate OTP baru
         otp = generate_otp()
 
         expire_minutes = int(
@@ -315,40 +314,43 @@ def login(data: LoginSchema):
     )
 
     if response.status_code != 200:
+
+        pending_doc = (
+            db.collection(
+                "pending_registrations"
+            )
+            .document(data.email)
+            .get()
+        )
+
+        if pending_doc.exists:
+
+            pending = pending_doc.to_dict()
+
+            expires_at = pending["expires_at"]
+
+            if datetime.utcnow() > expires_at.replace(
+                tzinfo=None
+            ):
+                raise HTTPException(
+                    status_code=403,
+                    detail="OTP sudah kadaluarsa. Silakan kirim ulang OTP."
+                )
+
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Akun belum diverifikasi. "
+                    "Silakan masukkan kode OTP."
+                )
+            )
+
         raise HTTPException(
             status_code=401,
             detail="Email atau password salah"
         )
 
     firebase_data = response.json()
-
-    lookup_url = (
-        "https://identitytoolkit.googleapis.com"
-        f"/v1/accounts:lookup?key={api_key}"
-    )
-
-    lookup_response = requests.post(
-        lookup_url,
-        json={
-            "idToken": firebase_data["idToken"]
-        }
-    )
-
-    lookup_data = lookup_response.json()
-
-    email_verified = (
-        lookup_data["users"][0]
-        .get("emailVerified", False)
-    )
-
-    if not email_verified:
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Email belum diverifikasi. "
-                "Silakan cek inbox Anda."
-            )
-        )
 
     token = create_access_token({
         "uid": firebase_data["localId"],
@@ -360,3 +362,4 @@ def login(data: LoginSchema):
         "uid": firebase_data["localId"],
         "access_token": token
     }
+
