@@ -5,12 +5,26 @@ from dotenv import load_dotenv
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
 from fastapi import HTTPException
 
-
+# Load file .env
 load_dotenv()
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-ALGORITHM = os.getenv("JWT_ALGORITHM")
-EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+# Ambil konfigurasi dari environment
+SECRET_KEY = os.getenv(
+    "JWT_SECRET_KEY",
+    "supersecretkey123"
+)
+
+ALGORITHM = os.getenv(
+    "JWT_ALGORITHM",
+    "HS256"
+)
+
+EXPIRE_MINUTES = int(
+    os.getenv(
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+        60
+    )
+)
 
 
 def create_access_token(data: dict):
@@ -24,11 +38,14 @@ def create_access_token(data: dict):
         "exp": expire
     })
 
-    return jwt.encode(
+    token = jwt.encode(
         to_encode,
         SECRET_KEY,
         algorithm=ALGORITHM
     )
+
+    return token
+
 
 def verify_access_token(token: str):
     try:
@@ -50,4 +67,10 @@ def verify_access_token(token: str):
         raise HTTPException(
             status_code=401,
             detail="Invalid token"
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Authentication error: {str(e)}"
         )

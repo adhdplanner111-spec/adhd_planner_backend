@@ -8,10 +8,20 @@ BASE_DIR = os.path.dirname(
     )
 )
 
-cred = credentials.Certificate(
-    os.path.join(BASE_DIR, "serviceAccountKey.json")
-)
+db = None
 
-firebase_admin.initialize_app(cred)
+try:
+    cred = credentials.Certificate(
+        os.path.join(
+            BASE_DIR,
+            "serviceAccountKey.json"
+        )
+    )
 
-db = firestore.client()
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app(cred)
+
+    db = firestore.client()
+
+except Exception as e:
+    print(f"Firebase tidak aktif: {e}")

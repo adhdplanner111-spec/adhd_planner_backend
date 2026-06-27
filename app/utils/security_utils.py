@@ -5,13 +5,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+FERNET_KEY = os.getenv("FERNET_KEY")
+
+if not FERNET_KEY:
+    raise ValueError(
+        "FERNET_KEY belum diisi pada file .env"
+    )
+
 fernet = Fernet(
-    os.getenv("FERNET_KEY").encode()
+    FERNET_KEY.encode()
 )
 
-def encrypt_password(
-    password: str
-):
+
+def encrypt_password(password: str):
     return fernet.encrypt(
         password.encode()
     ).decode()
