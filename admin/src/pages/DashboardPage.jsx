@@ -13,6 +13,7 @@ import api from "../services/api";
 import StatCard from "../components/StatCard";
 import FocusChart from "../components/FocusChart";
 import TaskChart from "../components/TaskChart";
+import ActivityLog from "../components/ActivityLog";
 
 export default function DashboardPage() {
   const [loading, setLoading] =
@@ -24,6 +25,9 @@ export default function DashboardPage() {
   const [weeklyData, setWeeklyData] =
     useState([]);
 
+  const [logs, setLogs] =
+    useState([]);
+  
   useEffect(() => {
     fetchDashboard();
   }, []);
@@ -39,6 +43,15 @@ export default function DashboardPage() {
         await api.get(
           "/admin/analytics/weekly"
         );
+
+      const activityResponse =
+        await api.get(
+            "/admin/activity-logs"
+      );
+
+      setLogs(
+        activityResponse.data.data
+      );
 
       setData(
         dashboardResponse.data.data
@@ -126,6 +139,12 @@ export default function DashboardPage() {
               data.pending_tasks
             }
           />
+        </Grid>
+        
+        <Grid size={12}>
+            <ActivityLog
+                logs={logs}
+            />
         </Grid>
 
       </Grid>

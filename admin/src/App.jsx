@@ -6,6 +6,8 @@ import {
 
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import UsersPage from "./pages/UsersPage";
+import PendingPage from "./pages/PendingPage";
 
 import AdminLayout from "./layouts/AdminLayout";
 import ProtectedRoute from "./router/ProtectedRoute";
@@ -27,6 +29,28 @@ function App() {
             <ProtectedRoute>
               <AdminLayout>
                 <DashboardPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <UsersPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/pending"
+          element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <PendingPage />
               </AdminLayout>
             </ProtectedRoute>
           }

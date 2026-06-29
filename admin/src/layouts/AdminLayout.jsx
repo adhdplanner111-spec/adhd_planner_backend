@@ -2,6 +2,7 @@ import { Box } from "@mui/material";
 
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+import { Outlet } from "react-router-dom";
 
 export default function AdminLayout({
   children,
