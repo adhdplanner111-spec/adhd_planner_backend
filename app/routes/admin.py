@@ -8,6 +8,20 @@ from app.core.admin_dependencies import get_current_admin
 from app.core.firebase import db
 from fastapi import Depends
 from datetime import datetime, timedelta
+from datetime import datetime, timedelta
+
+from app.schemas.admin_pending_schema import (
+    UpdatePendingOtpSchema,
+)
+
+from app.utils.email_sender import (
+    send_otp_email,
+)
+
+from app.utils.activity_logger import (
+    log_activity,
+)
+
 from app.core.admin_dependencies import (
     get_current_admin
 )
@@ -20,14 +34,19 @@ from app.schemas.admin_task_schema import (
     AdminUpdateTaskSchema
 )
 
+from app.schemas.admin_user_schema import (
+    CreateUserSchema,
+)
+
 from app.core.security import (
     create_access_token
 )
 
-from firebase_admin import auth
+from firebase_admin import auth, firestore
 from app.schemas.admin_user_schema import (
     AdminUpdateUserSchema
 )
+from app.utils.activity_logger import log_activity
 
 load_dotenv()
 
@@ -185,23 +204,166 @@ def admin_dashboard(
         }
     }
 
+@router.post("/users")
+def create_user(
+    data: CreateUserSchema,
+    admin=Depends(get_current_admin)
+):
+
+    try:
+
+        try:
+
+            auth.get_user_by_email(
+                data.email
+            )
+
+            raise HTTPException(
+                status_code=400,
+                detail="Email sudah terdaftar"
+            )
+
+        except auth.UserNotFoundError:
+            pass
+
+        user = auth.create_user(
+            email=data.email,
+            password=data.password,
+            display_name=data.fullname
+        )
+
+        db.collection(
+            "users"
+        ).document(
+            user.uid
+        ).set({
+
+            "fullname":
+                data.fullname,
+
+            "email":
+                data.email,
+
+            "streak": 0,
+
+            "productivity_score": 0,
+
+            "created_at":
+                firestore.SERVER_TIMESTAMP
+
+        })
+
+        log_activity(
+            user_id="ADMIN",
+            user_name="System Admin",
+            user_email="admin@adhdplanner.com",
+            module="Admin",
+            action="Create User",
+            description=(
+                f"Membuat user "
+                f"{data.fullname}"
+            )
+        )
+
+        return {
+
+            "success": True,
+
+            "message":
+                "User berhasil dibuat."
+
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
+
 @router.get("/users")
 def get_users(
     admin=Depends(get_current_admin)
 ):
-    docs = db.collection("users").stream()
+
+    docs = db.collection(
+        "users"
+    ).stream()
 
     users = []
 
     for doc in docs:
+
+        user = doc.to_dict()
+
+        task_docs = (
+            db.collection("tasks")
+            .where(
+                filter=firestore.FieldFilter(
+                    "user_id",
+                    "==",
+                    doc.id
+                )
+            )
+            .stream()
+        )
+
+        total_tasks = len(
+            list(task_docs)
+        )
+
+        created_at = user.get(
+            "created_at"
+        )
+
         users.append({
+
             "uid": doc.id,
-            **doc.to_dict()
+
+            "fullname":
+                user.get(
+                    "fullname"
+                ),
+
+            "email":
+                user.get(
+                    "email"
+                ),
+
+            "streak":
+                user.get(
+                    "streak",
+                    0
+                ),
+
+            "productivity_score":
+                user.get(
+                    "productivity_score",
+                    0
+                ),
+
+            "total_tasks":
+                total_tasks,
+
+            "created_at":
+                (
+                    created_at.isoformat()
+                    if created_at
+                    else None
+                )
+
         })
+
+    users.sort(
+        key=lambda x:
+        x["fullname"].lower()
+    )
 
     return {
         "success": True,
-        "total": len(users),
         "data": users
     }
 
@@ -300,6 +462,19 @@ def delete_user(
 
     except:
         pass
+
+    log_activity(
+        user_id="ADMIN",
+        user_name="Admin",
+        user_email="adhdadmin@adhdplanner.com",
+        module="Admin",
+        action="Delete User",
+        description=(
+            f"Menghapus user "
+            f"{user_data['fullname']} "
+            f"({user_data['email']})"
+        )
+    )
 
     db.collection(
         "users"
@@ -437,6 +612,20 @@ def delete_task(
             detail="Task tidak ditemukan"
         )
 
+    task = doc.to_dict()
+
+    log_activity(
+        user_id="ADMIN",
+        user_name="Admin",
+        user_email="adhdadmin@adhdplanner.com",
+        module="Admin",
+        action="Delete Task",
+        description=(
+            f"Menghapus task "
+            f"'{task.get('title', '-')}'"
+        )
+    )
+    
     ref.delete()
 
     return {
@@ -591,6 +780,20 @@ def delete_session(
             detail="Session tidak ditemukan"
         )
 
+    session = doc.to_dict()
+
+    log_activity(
+        user_id="ADMIN",
+        user_name="Admin",
+        user_email="adhdadmin@adhdplanner.com",
+        module="Admin",
+        action="Delete Focus Session",
+        description=(
+            f"Menghapus session milik "
+            f"{session.get('user_email', '-')}"
+        )
+    )
+
     ref.delete()
 
     return {
@@ -622,21 +825,35 @@ def get_pending_registrations(
         )
 
         registrations.append({
+
             "email": doc.id,
+
             "fullname": data.get(
                 "fullname"
             ),
+
+            "otp": data.get(
+                "otp"
+            ),
+
             "status": (
                 "expired"
                 if is_expired
                 else "active"
             ),
-            "expires_at": data.get(
-                "expires_at"
+
+            "expires_at": (
+                data.get("expires_at").isoformat()
+                if data.get("expires_at")
+                else None
             ),
-            "created_at": data.get(
-                "created_at"
+
+            "created_at": (
+                data.get("created_at").isoformat()
+                if data.get("created_at")
+                else None
             )
+
         })
 
     return {
@@ -708,6 +925,18 @@ def delete_pending_registration(
             detail="Data tidak ditemukan"
         )
 
+    log_activity(
+        user_id="ADMIN",
+        user_name="Admin",
+        user_email="adhdadmin@adhdplanner.com",
+        module="Admin",
+        action="Delete Pending OTP",
+        description=(
+            f"Menghapus pending registrasi "
+            f"{email}"
+        )
+    )
+
     ref.delete()
 
     return {
@@ -768,3 +997,123 @@ def admin_weekly(
         "data": result
     }
 
+@router.get("/activity-logs")
+def get_activity_logs(
+    admin=Depends(get_current_admin)
+):
+    docs = (
+        db.collection("activity_logs")
+        .order_by(
+            "created_at",
+            direction=firestore.Query.DESCENDING
+        )
+        .limit(20)
+        .stream()
+    )
+
+    logs = []
+
+    for doc in docs:
+
+        data = doc.to_dict()
+
+        created_at = data.get("created_at")
+
+        logs.append({
+            "id": doc.id,
+            "user_name": data.get("user_name"),
+            "user_email": data.get("user_email"),
+            "module": data.get("module"),
+            "action": data.get("action"),
+            "description": data.get("description"),
+            "created_at": (
+                created_at.isoformat()
+                if created_at
+                else None
+            )
+        })
+
+    return {
+        "success": True,
+        "data": logs
+    }
+
+@router.put("/pending-registrations/{email}")
+def update_pending_registration(
+    email: str,
+    data: UpdatePendingOtpSchema,
+    admin=Depends(get_current_admin)
+):
+
+    ref = (
+        db.collection(
+            "pending_registrations"
+        )
+        .document(email)
+    )
+
+    doc = ref.get()
+
+    if not doc.exists:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Pending registration tidak ditemukan"
+        )
+
+    pending = doc.to_dict()
+
+    expires_at = (
+        datetime.utcnow()
+        +
+        timedelta(
+            minutes=data.expire_minutes
+        )
+    )
+
+    ref.update({
+
+        "otp": data.otp,
+
+        "expires_at": expires_at
+
+    })
+
+    email_sent = send_otp_email(
+
+        recipient_email=email,
+
+        fullname=pending["fullname"],
+
+        otp=data.otp
+
+    )
+
+    log_activity(
+
+        user_id="ADMIN",
+
+        user_name="System Admin",
+
+        user_email="admin@adhdplanner.com",
+
+        module="Admin",
+
+        action="Edit Pending OTP",
+
+        description=(
+            f"Mengubah OTP dan mengirim ulang ke {email}"
+        )
+
+    )
+
+    return {
+
+        "success": True,
+
+        "email_sent": email_sent,
+
+        "message":
+            "OTP berhasil diperbarui."
+
+    }

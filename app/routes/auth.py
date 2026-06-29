@@ -21,6 +21,7 @@ from app.schemas.otp_schema import (
 )
 
 from app.utils.email_sender import send_otp_email
+from app.utils.activity_logger import log_activity
 from app.utils.otp import generate_otp
 from app.utils.security_utils import (
     decrypt_password,
@@ -181,6 +182,24 @@ def verify_otp(
             display_name=pending["fullname"]
         )
 
+        log_activity(
+            user.uid,
+            pending["fullname"],
+            pending["email"],
+            "Authentication",
+            "Verify OTP",
+            "Verifikasi OTP berhasil"
+        )
+
+        log_activity(
+            user.uid,
+            pending["fullname"],
+            pending["email"],
+            "Authentication",
+            "Register",
+            "User berhasil membuat akun"
+        )
+
         db.collection("users").document(
             user.uid
         ).set({
@@ -256,17 +275,24 @@ def resend_otp(
             )
         )
 
-        # timpa OTP lama
         doc_ref.update({
             "otp": otp,
             "expires_at": expires_at
         })
 
-        # kirim email baru
         email_sent = send_otp_email(
             recipient_email=pending["email"],
             fullname=pending["fullname"],
             otp=otp
+        )
+
+        log_activity(
+            "",
+            pending["fullname"],
+            pending["email"],
+            "Authentication",
+            "Resend OTP",
+            "Mengirim ulang kode OTP"
         )
 
         if not email_sent:
@@ -356,6 +382,23 @@ def login(data: LoginSchema):
         "uid": firebase_data["localId"],
         "email": data.email
     })
+
+    user_doc = (
+        db.collection("users")
+        .document(firebase_data["localId"])
+        .get()
+    )
+
+    user_data = user_doc.to_dict()
+
+    log_activity(
+        firebase_data["localId"],
+        user_data["fullname"],
+        user_data["email"],
+        "Authentication",
+        "Login",
+        "User login ke aplikasi"
+    )
 
     return {
         "success": True,
