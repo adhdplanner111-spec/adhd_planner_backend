@@ -27,9 +27,15 @@ def create_app() -> FastAPI:
 
     app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
+    default_origins = ["http://localhost:5173"]
+    extra_origins = os.getenv("ALLOWED_ORIGINS")
+    origins = default_origins + [
+        origin.strip() for origin in extra_origins.split(",") if origin.strip()
+    ]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["https://adhd-planner-web.vercel.app/"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -54,7 +60,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
-
-
-
