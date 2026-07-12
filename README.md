@@ -115,7 +115,7 @@ adhd_planner_backend/
 # Run Backend
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Swagger:
