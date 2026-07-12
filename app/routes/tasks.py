@@ -23,6 +23,8 @@ def create_task(
         "priority": data.priority,
         "status": "Pending",
         "due_date": data.due_date,
+        "start_time": data.start_time,
+        "duration_minutes": data.duration_minutes,
         "created_at": firestore.SERVER_TIMESTAMP,
         "updated_at": firestore.SERVER_TIMESTAMP
     })
@@ -49,7 +51,7 @@ def get_tasks(
         task = doc.to_dict()
 
         tasks.append({
-            "task_id": doc.id,
+            "id": doc.id,
             **task
         })
 
@@ -82,7 +84,7 @@ def get_task(
     return {
         "success": True,
         "data": {
-            "task_id": doc.id,
+            "id": doc.id,
             **task
         }
     }
@@ -155,4 +157,3 @@ def delete_task(
         "success": True,
         "message": "Task berhasil dihapus"
     }
-

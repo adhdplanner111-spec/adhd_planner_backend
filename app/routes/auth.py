@@ -12,6 +12,7 @@ from app.core.security import create_access_token
 from app.schemas.auth_schema import (
     LoginSchema,
     RegisterSchema,
+    GoogleLoginSchema,
 )
 
 from app.schemas.otp_schema import (
@@ -221,9 +222,7 @@ def verify_otp(
 
         return {
             "success": True,
-            "uid": user.uid,
-            "message":
-                "Registrasi berhasil. Silakan login."
+            "message": "Registrasi berhasil. Silakan login."
         }
 
     except HTTPException:
@@ -402,7 +401,111 @@ def login(data: LoginSchema):
 
     return {
         "success": True,
-        "uid": firebase_data["localId"],
-        "access_token": token
+        "message": "Login berhasil",
+        "data": {
+            "uid": firebase_data["localId"],
+            "fullname": user_data["fullname"],
+            "email": user_data["email"],
+            "photo_url": user_data.get("photo_url", ""),
+            "streak": user_data.get("streak", 0),
+            "productivity_score": user_data.get("productivity_score", 0),
+            "access_token": token,
+        }
+    }
+
+@router.post("/google-login")
+def google_login(
+    data: GoogleLoginSchema,
+):
+
+    decoded_token = auth.verify_id_token(
+        data.id_token
+    )
+
+    uid = decoded_token["uid"]
+
+    email = decoded_token["email"]
+
+    fullname = decoded_token.get(
+        "name",
+        email.split("@")[0],
+    )
+
+    photo_url = decoded_token.get(
+        "picture",
+        "",
+    )
+
+    user_ref = db.collection(
+        "users"
+    ).document(uid)
+
+    user_doc = user_ref.get()
+
+    if not user_doc.exists:
+
+        user_ref.set({
+
+            "fullname": fullname,
+
+            "email": email,
+
+            "photo_url": photo_url,
+
+            "streak": 0,
+
+            "productivity_score": 0,
+
+            "created_at":
+                firestore.SERVER_TIMESTAMP,
+
+        })
+
+    else:
+
+        user_ref.update({
+
+            "fullname": fullname,
+
+            "photo_url": photo_url,
+
+        })
+
+    log_activity(
+
+        uid,
+
+        fullname,
+
+        email,
+
+        "Authentication",
+
+        "Google Login",
+
+        "User berhasil login menggunakan Google"
+
+    )
+
+    token = create_access_token({
+
+        "uid": uid,
+
+        "email": email,
+
+    })
+
+    return {
+        "success": True,
+        "message": "Login Google berhasil",
+        "data": {
+            "uid": uid,
+            "fullname": fullname,
+            "email": email,
+            "photo_url": photo_url,
+            "streak": 0,
+            "productivity_score": 0,
+            "access_token": token,
+        }
     }
 

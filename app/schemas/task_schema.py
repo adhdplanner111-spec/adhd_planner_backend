@@ -6,6 +6,8 @@ class TaskCreate(BaseModel):
     description: Optional[str] = None
     priority: str
     due_date: str
+    start_time: Optional[str] = None  # Format: HH:MM (contoh: 11:00)
+    duration_minutes: Optional[int] = None  # Durasi dalam menit
 
 
 class TaskUpdate(BaseModel):
@@ -14,3 +16,5 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     status: Optional[str] = None
     due_date: Optional[str] = None
+    start_time: Optional[str] = None
+    duration_minutes: Optional[int] = None
