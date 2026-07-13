@@ -16,8 +16,11 @@ def create_task(
 ):
     task_ref = db.collection("tasks").document()
 
+    # Pastikan user["uid"] tersedia
+    user_id = user.get("uid")
+    
     task_ref.set({
-        "user_id": user["uid"],
+        "user_id": user_id,
         "title": data.title,
         "description": data.description,
         "priority": data.priority,
@@ -39,9 +42,14 @@ def create_task(
 def get_tasks(
     user=Depends(get_current_user)
 ):
+    # --- DEBUGGER ---
+    user_id = user.get("uid")
+    print(f"DEBUG: Mencari task untuk user_id: {user_id}")
+    # ----------------
+    
     docs = (
         db.collection("tasks")
-        .where("user_id", "==", user["uid"])
+        .where("user_id", "==", user_id)
         .stream()
     )
 
@@ -49,22 +57,41 @@ def get_tasks(
 
     for doc in docs:
         task = doc.to_dict()
-
         tasks.append({
             "id": doc.id,
             **task
         })
+
+    # --- DEBUGGER ---
+    print(f"DEBUG: Jumlah task ditemukan: {len(tasks)}")
+    # ----------------
 
     return {
         "success": True,
         "data": tasks
     }
 
-@router.get("/{task_id}")
-def get_task(
-    task_id: str,
-    user=Depends(get_current_user)
-):
+@router.get("/")
+def get_tasks(user=Depends(get_current_user)):
+    user_id = user.get("uid")
+    
+    # Ambil dokumen
+    docs = db.collection("tasks").where("user_id", "==", user_id).stream()
+
+    tasks = []
+    for doc in docs:
+        task_data = doc.to_dict()
+        if task_data:  # Pastikan task_data tidak None
+            # Gabungkan id dan data task
+            combined = {"id": doc.id}
+            combined.update(task_data)
+            tasks.append(combined)
+
+    return {
+        "success": True,
+        "data": tasks
+    }
+
     doc = db.collection("tasks").document(task_id).get()
 
     if not doc.exists:
@@ -75,7 +102,7 @@ def get_task(
 
     task = doc.to_dict()
 
-    if task["user_id"] != user["uid"]:
+    if task["user_id"] != user.get("uid"):
         raise HTTPException(
             status_code=403,
             detail="Akses ditolak"
@@ -96,37 +123,20 @@ def update_task(
     user=Depends(get_current_user)
 ):
     ref = db.collection("tasks").document(task_id)
-
     doc = ref.get()
 
     if not doc.exists:
-        raise HTTPException(
-            status_code=404,
-            detail="Task tidak ditemukan"
-        )
+        raise HTTPException(status_code=404, detail="Task tidak ditemukan")
 
     task = doc.to_dict()
+    if task["user_id"] != user.get("uid"):
+        raise HTTPException(status_code=403, detail="Akses ditolak")
 
-    if task["user_id"] != user["uid"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Akses ditolak"
-        )
-
-    update_data = {
-        key: value
-        for key, value in data.dict().items()
-        if value is not None
-    }
-
+    update_data = {k: v for k, v in data.dict().items() if v is not None}
     update_data["updated_at"] = firestore.SERVER_TIMESTAMP
 
     ref.update(update_data)
-
-    return {
-        "success": True,
-        "message": "Task berhasil diperbarui"
-    }
+    return {"success": True, "message": "Task berhasil diperbarui"}
 
 @router.delete("/{task_id}")
 def delete_task(
@@ -134,26 +144,14 @@ def delete_task(
     user=Depends(get_current_user)
 ):
     ref = db.collection("tasks").document(task_id)
-
     doc = ref.get()
 
     if not doc.exists:
-        raise HTTPException(
-            status_code=404,
-            detail="Task tidak ditemukan"
-        )
+        raise HTTPException(status_code=404, detail="Task tidak ditemukan")
 
     task = doc.to_dict()
-
-    if task["user_id"] != user["uid"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Akses ditolak"
-        )
+    if task["user_id"] != user.get("uid"):
+        raise HTTPException(status_code=403, detail="Akses ditolak")
 
     ref.delete()
-
-    return {
-        "success": True,
-        "message": "Task berhasil dihapus"
-    }
+    return {"success": True, "message": "Task berhasil dihapus"}

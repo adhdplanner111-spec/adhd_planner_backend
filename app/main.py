@@ -1,13 +1,38 @@
-"""FastAPI entrypoint.
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.routes.auth import router as auth_router
+from app.routes.tasks import router as tasks_router
+from app.routes.focus import router as focus_router
+from app.routes.analytics import router as analytics_router
+from app.routes.admin import router as admin_router
+from app.routes.profile import router as profile_router
 
-The repo previously exposed the ASGI app at the project root (main.py).
-Some runners (and docs) expect it at `app.main:app`.
-"""
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="ADHD Planner API",
+        version="1.0.0",
+        redirect_slashes=True
+    )
 
-from __future__ import annotations
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-import importlib
+    # Menambahkan semua router
+    app.include_router(auth_router)
+    app.include_router(tasks_router)
+    app.include_router(focus_router)
+    app.include_router(analytics_router)
+    
+    # PERUBAHAN DI SINI: Menambahkan prefix="/admin"
+    app.include_router(admin_router, prefix="/admin")
+    
+    app.include_router(profile_router)
 
-_main = importlib.import_module("main")
-app = _main.app
+    return app
 
+app = create_app()
