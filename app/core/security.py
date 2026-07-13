@@ -22,7 +22,11 @@ ALGORITHM = os.getenv(
 EXPIRE_MINUTES = int(
     os.getenv(
         "ACCESS_TOKEN_EXPIRE_MINUTES",
+<<<<<<< HEAD
         600000
+=======
+        43800
+>>>>>>> d0112576577fb8c67e8fd78705ac51e270b83c99
     )
 )
 

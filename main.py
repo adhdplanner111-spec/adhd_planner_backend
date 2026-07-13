@@ -1,7 +1,5 @@
 import os
-
-from fastapi import FastAPI
-from fastapi import Depends
+from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,12 +11,13 @@ from app.routes.analytics import router as analytics_router
 from app.routes.admin import router as admin_router
 from app.routes.profile import router as profile_router
 
-
 def create_app() -> FastAPI:
+    # PERBAIKAN 1: Menambahkan redirect_slashes=False untuk mencegah error CORS 307
     app = FastAPI(
         title="ADHD Planner API",
         version="1.0.0",
         description="Backend API untuk ADHD Smart Daily Planner",
+        redirect_slashes=False,
     )
 
     BASE_DIR = os.path.dirname(__file__)
@@ -27,11 +26,18 @@ def create_app() -> FastAPI:
 
     app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
+    # PERBAIKAN 2: Penanganan variable lingkungan yang lebih aman
     default_origins = ["http://localhost:5173"]
     extra_origins = os.getenv("ALLOWED_ORIGINS", "")
+<<<<<<< HEAD
     origins = default_origins + [
         origin.strip() for origin in extra_origins.split(",") if origin.strip()
     ]
+=======
+    origins = default_origins
+    if extra_origins:
+        origins += [origin.strip() for origin in extra_origins.split(",") if origin.strip()]
+>>>>>>> d0112576577fb8c67e8fd78705ac51e270b83c99
 
     app.add_middleware(
         CORSMiddleware,
@@ -57,6 +63,5 @@ def create_app() -> FastAPI:
         return {"message": "Authorized", "user": user}
 
     return app
-
 
 app = create_app()
