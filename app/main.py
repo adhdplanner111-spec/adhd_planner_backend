@@ -30,7 +30,7 @@ def create_app() -> FastAPI:
     app.include_router(analytics_router)
     
     # PERUBAHAN DI SINI: Menambahkan prefix="/admin"
-    app.include_router(admin_router, prefix="/admin"), tags=["admin"]
+    app.include_router(admin_router, prefix="/admin", tags=["admin"])
     
     app.include_router(profile_router)
 

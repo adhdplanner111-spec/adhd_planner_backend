@@ -9,6 +9,7 @@ from app.core.firebase import db
 from fastapi import Depends
 from datetime import datetime, timedelta
 from datetime import datetime, timedelta
+from app.routes.admin import router as admin_router
 
 from app.schemas.admin_pending_schema import (
     UpdatePendingOtpSchema,
@@ -51,8 +52,7 @@ from app.utils.activity_logger import log_activity
 load_dotenv()
 
 router = APIRouter(
-    prefix="/admin",
-    tags=["Admin"]
+    tags=["admin"]
 )
 
 @router.post("/login")
