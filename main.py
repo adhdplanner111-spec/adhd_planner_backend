@@ -12,7 +12,6 @@ from app.routes.admin import router as admin_router
 from app.routes.profile import router as profile_router
 
 def create_app() -> FastAPI:
-    # PERBAIKAN 1: Menambahkan redirect_slashes=False untuk mencegah error CORS 307
     app = FastAPI(
         title="ADHD Planner API",
         version="1.0.0",
@@ -26,18 +25,12 @@ def create_app() -> FastAPI:
 
     app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
-    # PERBAIKAN 2: Penanganan variable lingkungan yang lebih aman
+    # Pengaturan CORS
     default_origins = ["http://localhost:5173"]
     extra_origins = os.getenv("ALLOWED_ORIGINS", "")
-<<<<<<< HEAD
-    origins = default_origins + [
-        origin.strip() for origin in extra_origins.split(",") if origin.strip()
-    ]
-=======
     origins = default_origins
     if extra_origins:
         origins += [origin.strip() for origin in extra_origins.split(",") if origin.strip()]
->>>>>>> d0112576577fb8c67e8fd78705ac51e270b83c99
 
     app.add_middleware(
         CORSMiddleware,
@@ -47,11 +40,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Menyertakan Router
     app.include_router(auth_router)
-    app.include_router(tasks_router)
+    app.include_router(tasks_router, prefix="/tasks")
     app.include_router(focus_router)
     app.include_router(analytics_router)
-    app.include_router(admin_router)
+    app.include_router(admin_router, prefix="/admin", tags=["admin"])
     app.include_router(profile_router)
 
     @app.get("/")
