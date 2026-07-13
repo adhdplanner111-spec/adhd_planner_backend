@@ -378,9 +378,9 @@ def login(data: LoginSchema):
     firebase_data = response.json()
 
     token = create_access_token({
-        "uid": firebase_data["localId"],
-        "email": data.email
-    })
+    "sub": firebase_data["localId"],
+    "email": data.email
+})
 
     user_doc = (
         db.collection("users")

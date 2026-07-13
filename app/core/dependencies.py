@@ -4,25 +4,27 @@ from app.core.security import verify_access_token
 
 security = HTTPBearer()
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
-    
-    # 1. Validasi token menggunakan fungsi verify_access_token Anda
     payload = verify_access_token(token)
     
-    # 2. Jika payload kosong (token tidak valid/expired), lempar error 401
+    # TAMBAHKAN INI UNTUK DEBUGGING
+    print("DEBUG PAYLOAD:", payload) 
+    
     if not payload:
+        raise HTTPException(status_code=401, detail="Token tidak valid")
+    
+    # CEK APA ISINYA DI SINI
+    if "sub" not in payload and "uid" not in payload:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token tidak valid atau kadaluwarsa",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=401, 
+            detail=f"Token hanya berisi: {list(payload.keys())}" # Ini akan memberitahu kita kunci apa yang ada
         )
+    return payload
     
     # 3. Pastikan 'uid' ada di dalam payload
     # Jika di database Anda kuncinya bukan 'uid', ubah 'uid' di bawah ini
-    if "uid" not in payload:
+    if "sub" not in payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token tidak mengandung informasi pengguna yang valid",

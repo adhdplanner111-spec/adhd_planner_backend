@@ -39,25 +39,10 @@ def create_task(
     }
 
 @router.get("/")
-def get_tasks(user=Depends(get_current_user)):
-    user_id = user.get("uid")
-    
-    # Ambil dokumen dari Firebase
-    docs = db.collection("tasks").where("user_id", "==", user_id).stream()
-
-    tasks = []
-    for doc in docs:
-        task_data = doc.to_dict()
-        if task_data:
-            # Membuat dictionary baru yang menggabungkan ID dan isi data
-            combined = {"id": doc.id}
-            combined.update(task_data)
-            tasks.append(combined)
-
-    return {
-        "success": True,
-        "data": tasks
-    }
+def get_tasks(current_user: dict = Depends(get_current_user)):
+    # Backend mengambil data berdasarkan user yang valid
+    user_id = current_user.get("sub")
+    return db.collection("tasks").where("user_id", "==", user_id).stream()
 
 @router.get("/{task_id}")
 def get_task(
