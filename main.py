@@ -19,19 +19,16 @@ def create_app() -> FastAPI:
         title="ADHD Planner API",
         version="1.0.0",
         description="Backend API untuk ADHD Smart Daily Planner",
+        redirect_slashes=False, 
     )
 
-    BASE_DIR = os.path.dirname(__file__)
-    MEDIA_DIR = os.path.join(BASE_DIR, "media")
-    os.makedirs(os.path.join(MEDIA_DIR, "profile_photos"), exist_ok=True)
-
-    app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 
     default_origins = ["http://localhost:5173"]
-    extra_origins = os.getenv("ALLOWED_ORIGINS")
-    origins = default_origins + [
-        origin.strip() for origin in extra_origins.split(",") if origin.strip()
-    ]
+
+    extra_origins = os.getenv("ALLOWED_ORIGINS", "")
+    origins = default_origins
+    if extra_origins:
+        origins += [origin.strip() for origin in extra_origins.split(",") if origin.strip()]
 
     app.add_middleware(
         CORSMiddleware,
@@ -40,13 +37,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    app.include_router(auth_router)
-    app.include_router(tasks_router)
-    app.include_router(focus_router)
-    app.include_router(analytics_router)
-    app.include_router(admin_router)
-    app.include_router(profile_router)
 
     @app.get("/")
     def root():
