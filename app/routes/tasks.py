@@ -40,28 +40,9 @@ def create_task(
 
 @router.get("/")
 def get_tasks(current_user: dict = Depends(get_current_user)):
-    user_id = current_user["uid"]
-
-    docs = (
-        db.collection("tasks")
-        .where("user_id", "==", user_id)
-        .stream()
-    )
-
-    tasks = []
-
-    for doc in docs:
-        task = doc.to_dict() or {}
-
-        task["id"] = doc.id
-
-        tasks.append(task)
-
-    return {
-        "success": True,
-        "message": "Berhasil mengambil task",
-        "data": {tasks}
-    }
+    # Backend mengambil data berdasarkan user yang valid
+    user_id = current_user.get("sub")
+    return db.collection("tasks").where("user_id", "==", user_id).stream()
 
 @router.get("/{task_id}")
 def get_task(
