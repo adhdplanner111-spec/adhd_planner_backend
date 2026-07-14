@@ -52,9 +52,11 @@ def create_app() -> FastAPI:
     def root():
         return {"message": "ADHD Planner API Running"}
 
-    @app.get("/me")
-    def me(user=Depends(get_current_user)):
-        return {"message": "Authorized", "user": user}
+    @app.on_event("startup")
+    async def startup_event():
+        from app.utils.data_collector import collect_adhd_youtube_data
+        from fastapi.concurrency import run_in_threadpool
+        await run_in_threadpool(collect_adhd_youtube_data)
 
     return app
 
