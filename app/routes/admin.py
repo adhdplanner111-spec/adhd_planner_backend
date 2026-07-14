@@ -51,7 +51,6 @@ from app.schemas.admin_user_schema import (
 from app.utils.activity_logger import log_activity
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 router = APIRouter(
     tags=["admin"]
@@ -94,15 +93,14 @@ def admin_login(
 
 @router.post("/admin/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
+    # Inisialisasi di dalam fungsi memastikan env sudah terbaca
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
     transcript = client.audio.transcriptions.create(
         model="whisper-1", 
         file=file.file
     )
-
-    return {
-        "success": True,
-        "transcript": transcript.text
-    }
+    return {"text": transcript.text}
 
 @router.get("/me")
 def admin_me(
