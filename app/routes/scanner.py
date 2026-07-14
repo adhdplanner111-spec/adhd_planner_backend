@@ -16,6 +16,24 @@ _client = genai.Client(
     api_key=os.environ["GEMINI_API_KEY"]
 )
 
+response = _client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents=[
+        types.Part.from_bytes(
+            data=image_bytes,
+            mime_type=content_type,
+        ),
+        "Ekstrak semua task dari gambar ini.",
+    ],
+    config=types.GenerateContentConfig(
+        system_instruction=_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        temperature=0.1,
+    )
+)
+
+raw_response = response.text
+
 _SYSTEM_PROMPT = """
 Kamu adalah AI Task Scanner untuk aplikasi Smart ADHD Planner.
 
@@ -523,23 +541,7 @@ async def scan_image(
     ) else "image/jpeg"
 
     try:
-        response = _client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=content_type,
-                ),
-                "Ekstrak semua task dari gambar ini.",
-            ],
-            config=types.GenerateContentConfig(
-                system_instruction=_SYSTEM_PROMPT,
-                response_mime_type="application/json",
-                temperature=0.1,
-            )
-        )
-
-        raw_response = response.text.strip()
+        response = _client.chat.completions.create(
             model="gpt-4o",
             max_tokens=1024,
             messages=[
@@ -565,6 +567,8 @@ async def scan_image(
                 },
             ],
         )
+
+        raw_response = response.text.strip()
 
         # Strip markdown fences jika ada
         if raw_response.startswith("```"):
