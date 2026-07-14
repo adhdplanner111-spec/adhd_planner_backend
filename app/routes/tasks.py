@@ -16,11 +16,8 @@ def create_task(
 ):
     task_ref = db.collection("tasks").document()
 
-    # Pastikan user["uid"] tersedia
-    user_id = user.get("uid")
-    
     task_ref.set({
-        "user_id": user_id,
+        "user_id": user["uid"],
         "title": data.title,
         "description": data.description,
         "priority": data.priority,
@@ -39,10 +36,29 @@ def create_task(
     }
 
 @router.get("/")
-def get_tasks(current_user: dict = Depends(get_current_user)):
-    # Backend mengambil data berdasarkan user yang valid
-    user_id = current_user.get("sub")
-    return db.collection("tasks").where("user_id", "==", user_id).stream()
+def get_tasks(
+    user=Depends(get_current_user)
+):
+    docs = (
+        db.collection("tasks")
+        .where("user_id", "==", user["uid"])
+        .stream()
+    )
+
+    tasks = []
+
+    for doc in docs:
+        task = doc.to_dict()
+
+        tasks.append({
+            "id": doc.id,
+            **task
+        })
+
+    return {
+        "success": True,
+        "data": tasks
+    }
 
 @router.get("/{task_id}")
 def get_task(
@@ -59,7 +75,7 @@ def get_task(
 
     task = doc.to_dict()
 
-    if task["user_id"] != user.get("uid"):
+    if task["user_id"] != user["uid"]:
         raise HTTPException(
             status_code=403,
             detail="Akses ditolak"
@@ -80,20 +96,37 @@ def update_task(
     user=Depends(get_current_user)
 ):
     ref = db.collection("tasks").document(task_id)
+
     doc = ref.get()
 
     if not doc.exists:
-        raise HTTPException(status_code=404, detail="Task tidak ditemukan")
+        raise HTTPException(
+            status_code=404,
+            detail="Task tidak ditemukan"
+        )
 
     task = doc.to_dict()
-    if task["user_id"] != user.get("uid"):
-        raise HTTPException(status_code=403, detail="Akses ditolak")
 
-    update_data = {k: v for k, v in data.dict().items() if v is not None}
+    if task["user_id"] != user["uid"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Akses ditolak"
+        )
+
+    update_data = {
+        key: value
+        for key, value in data.dict().items()
+        if value is not None
+    }
+
     update_data["updated_at"] = firestore.SERVER_TIMESTAMP
 
     ref.update(update_data)
-    return {"success": True, "message": "Task berhasil diperbarui"}
+
+    return {
+        "success": True,
+        "message": "Task berhasil diperbarui"
+    }
 
 @router.delete("/{task_id}")
 def delete_task(
@@ -101,16 +134,25 @@ def delete_task(
     user=Depends(get_current_user)
 ):
     ref = db.collection("tasks").document(task_id)
+
     doc = ref.get()
 
     if not doc.exists:
-        raise HTTPException(status_code=404, detail="Task tidak ditemukan")
+        raise HTTPException(
+            status_code=404,
+            detail="Task tidak ditemukan"
+        )
 
     task = doc.to_dict()
-    if task["user_id"] != user.get("uid"):
-        raise HTTPException(status_code=403, detail="Akses ditolak")
+
+    if task["user_id"] != user["uid"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Akses ditolak"
+        )
 
     ref.delete()
+
     return {
         "success": True,
         "message": "Task berhasil dihapus"
