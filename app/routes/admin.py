@@ -3,7 +3,9 @@ import os
 
 from fastapi import Depends
 from dotenv import load_dotenv
+from openai import OpenAI
 from fastapi import APIRouter, HTTPException
+from fastapi import UploadFile, File
 from app.core.admin_dependencies import get_current_admin
 from app.core.firebase import db
 from fastapi import Depends
@@ -49,6 +51,7 @@ from app.schemas.admin_user_schema import (
 from app.utils.activity_logger import log_activity
 
 load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 router = APIRouter(
     tags=["admin"]
@@ -87,6 +90,18 @@ def admin_login(
         "success": True,
         "access_token": token,
         "token_type": "bearer"
+    }
+
+@router.post("/admin/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    transcript = client.audio.transcriptions.create(
+        model="whisper-1", 
+        file=file.file
+    )
+
+    return {
+        "success": True,
+        "transcript": transcript.text
     }
 
 @router.get("/me")
