@@ -2,7 +2,8 @@ import base64
 import json
 import os
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from openai import OpenAI, APIError
+from google import genai
+from google.genai import types
 
 from app.core.dependencies import get_current_user
 
@@ -11,7 +12,9 @@ router = APIRouter(
     tags=["Scanner"],
 )
 
-_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+_client = genai.Client(
+    api_key=os.environ["GEMINI_API_KEY"]
+)
 
 _SYSTEM_PROMPT = """
 Kamu adalah AI Task Scanner untuk aplikasi Smart ADHD Planner.
@@ -487,7 +490,6 @@ Jika tidak ditemukan task sama sekali:
 }
 """
 
-
 @router.post("/scan")
 async def scan_image(
     file: UploadFile = File(...),
@@ -521,7 +523,23 @@ async def scan_image(
     ) else "image/jpeg"
 
     try:
-        response = _client.chat.completions.create(
+        response = _client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(
+                    data=image_bytes,
+                    mime_type=content_type,
+                ),
+                "Ekstrak semua task dari gambar ini.",
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=_SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                temperature=0.1,
+            )
+        )
+
+        raw_response = response.text.strip()
             model="gpt-4o",
             max_tokens=1024,
             messages=[
@@ -548,8 +566,6 @@ async def scan_image(
             ],
         )
 
-        raw_response = response.choices[0].message.content.strip()
-
         # Strip markdown fences jika ada
         if raw_response.startswith("```"):
             raw_response = raw_response.split("```")[1]
@@ -569,7 +585,7 @@ async def scan_image(
             status_code=422,
             detail="Gagal mem-parse respons AI. Coba foto ulang dengan pencahayaan lebih baik.",
         )
-    except APIError as e:
+    except Exception as e:
         raise HTTPException(
             status_code=502,
             detail=f"Layanan AI tidak tersedia: {str(e)}",
