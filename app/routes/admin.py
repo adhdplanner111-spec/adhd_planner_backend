@@ -502,7 +502,7 @@ def get_tasks(
 
         user_doc = (
             db.collection("users")
-            .document(task["user_id"])
+            .document(task.get("user_id", "default_user_id_atau_handle_error"))
             .get()
         )
 
@@ -1115,4 +1115,75 @@ def update_pending_registration(
         "message":
             "OTP berhasil diperbarui."
 
+    }
+
+
+@router.post("/analytics/collect")
+def admin_trigger_collection(
+    admin=Depends(get_current_admin)
+):
+    from app.utils.data_collector import collect_adhd_youtube_data
+    return collect_adhd_youtube_data()
+
+
+@router.get("/analytics/summary")
+def get_analytics_summary(
+    admin=Depends(get_current_admin)
+):
+    # 1. Internal Task Priority Distribution
+    tasks = db.collection("tasks").stream()
+    priority_counts = {"High": 0, "Medium": 0, "Low": 0}
+    for doc in tasks:
+        t = doc.to_dict()
+        p = t.get("priority", "Medium")
+        if p in priority_counts:
+            priority_counts[p] += 1
+        else:
+            priority_counts["Medium"] += 1
+            
+    # 2. Internal Focus Session Duration Trends (Focus vs Break)
+    sessions = db.collection("focus_sessions").stream()
+    duration_by_type = {"focus": 0, "break": 0}
+    for doc in sessions:
+        s = doc.to_dict()
+        t = s.get("type", "focus")
+        d = s.get("duration_seconds", s.get("duration", 0))
+        if t in duration_by_type:
+            duration_by_type[t] += d
+            
+    # 3. External YouTube Video Categories
+    videos = db.collection("youtube_adhd_videos").stream()
+    category_counts = {}
+    video_list = []
+    for doc in videos:
+        v = doc.to_dict()
+        cat = v.get("category", "General ADHD")
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+        video_list.append(v)
+        
+    # Sort videos by published date descending
+    sorted_videos = sorted(
+        video_list, 
+        key=lambda x: x.get("published_at", ""), 
+        reverse=True
+    )
+        
+    return {
+        "success": True,
+        "internal": {
+            "priority": [
+                {"name": k, "value": v} for k, v in priority_counts.items()
+            ],
+            "focus_break_ratio": [
+                {"name": "Focus", "value": round(duration_by_type["focus"] / 60, 1)},
+                {"name": "Break", "value": round(duration_by_type["break"] / 60, 1)},
+            ]
+        },
+        "external": {
+            "categories": [
+                {"name": k, "value": v} for k, v in category_counts.items()
+            ],
+            "videos_count": len(video_list),
+            "videos": sorted_videos[:5]
+        }
     }
