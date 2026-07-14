@@ -4,6 +4,7 @@ __pycache__/
 
 .env
 serviceAccountKey.json
+OPENAI_API_KEY
 
 .idea/
 .vscode/
