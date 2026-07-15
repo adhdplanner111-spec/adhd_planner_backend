@@ -12,17 +12,11 @@ from app.routes.focus import router as focus_router
 from app.routes.analytics import router as analytics_router
 from app.routes.admin import router as admin_router
 from app.routes.profile import router as profile_router
-<<<<<<< HEAD
+
 from app.routes.scanner import router as scanner_router
 from app.routes.voice import router as voice_router       # ← TAMBAH INI
 from app.core.config import config
 
-
-=======
-from app.routes.scanner import router as scanner_router  
-from app.core.config import config
-
->>>>>>> 010946aad6a51edf876a012f199cfe201c0f1bb0
 def create_app() -> FastAPI:
     app = FastAPI(
         title="ADHD Planner API",
