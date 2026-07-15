@@ -148,7 +148,7 @@ async def transcribe_voice(
     try:
         # Step 1: Transkripsi audio menggunakan Gemini
         transcription_response = _client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             contents=[
                 types.Part.from_bytes(
                     data=audio_bytes,
@@ -181,7 +181,7 @@ async def transcribe_voice(
 
         # Step 2: Ekstrak task dari transkrip
         extraction_response = _client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             contents=[
                 f"Transkrip perintah suara:\n\n{transcript}"
             ],
