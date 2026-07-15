@@ -3,6 +3,10 @@ import os
 from google import genai
 from google.genai import types
 
+from xml.parsers.expat import model
+import google.generativeai as genai
+import os
+
 from fastapi import Depends
 from dotenv import load_dotenv
 from fastapi import APIRouter, UploadFile, File
@@ -51,6 +55,8 @@ from app.schemas.admin_user_schema import (
     AdminUpdateUserSchema
 )
 from app.utils.activity_logger import log_activity
+
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 load_dotenv()
 
@@ -128,6 +134,23 @@ async def transcribe_audio(
             status_code=500,
             detail=str(e)
         )
+
+@router.post("/admin")
+async def transcribe_audio(file: UploadFile = File(...)):
+    # 1. Baca isi file
+    audio_data = await file.read()
+
+    # 2. Inisialisasi model
+    model = genai.GenerativeModel('gemini-1.5-flash')
+
+    # 3. Minta Gemini buat transkripsi
+    response = model.generate_content([
+        {"mime_type": file.content_type, "data": audio_data},
+        "Tolong transkripsikan audio ini ke teks"
+    ])
+
+    return {"text": response.text}
+
 
 @router.get("/me")
 def admin_me(

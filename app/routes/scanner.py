@@ -1,22 +1,54 @@
-import base64
-import json
 import os
+<<<<<<< HEAD
 
+=======
+import json
+import google.generativeai as genai
+>>>>>>> 010946aad6a51edf876a012f199cfe201c0f1bb0
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from google import genai
-from google.genai import types
-
 from app.core.dependencies import get_current_user
+
+# 1. Konfigurasi
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 router = APIRouter(
     prefix="/scanner",
     tags=["Scanner"],
 )
 
-_client = genai.Client(
-    api_key=os.environ["GEMINI_API_KEY"]
-)
+@router.post("/process-image")
+async def process_image(file: UploadFile = File(...)):
+    try:
+        # 2. Baca file
+        image_bytes = await file.read()
+        
+        # 3. Siapkan model
+        # Gunakan 'gemini-1.5-flash' karena 'gemini-2.5-flash' belum tersedia secara umum
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
+<<<<<<< HEAD
+=======
+        # 4. Request ke Gemini
+        # Format untuk SDK lama adalah list [teks, blob/data]
+        response = model.generate_content([
+            "Ekstrak semua task dari gambar ini dalam format JSON.",
+            {
+                "mime_type": file.content_type,
+                "data": image_bytes
+            }
+        ])
+
+        # 5. Parsing hasil
+        # Jika responnya JSON, bersihkan string Markdown (```json ... ```)
+        text = response.text.replace("```json", "").replace("```", "").strip()
+        data = json.loads(text)
+        
+        return data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+>>>>>>> 010946aad6a51edf876a012f199cfe201c0f1bb0
 _SYSTEM_PROMPT = """
 Kamu adalah AI Task Scanner untuk aplikasi Smart ADHD Planner.
 

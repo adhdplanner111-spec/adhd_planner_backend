@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +11,10 @@ from app.routes.focus import router as focus_router
 from app.routes.analytics import router as analytics_router
 from app.routes.admin import router as admin_router
 from app.routes.profile import router as profile_router
+
+load_dotenv()
+
+from fastapi import FastAPI, Depends
 
 def create_app() -> FastAPI:
     app = FastAPI(
