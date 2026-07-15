@@ -52,9 +52,6 @@ from app.schemas.admin_user_schema import (
 )
 from app.utils.activity_logger import log_activity
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-
-
 load_dotenv()
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
