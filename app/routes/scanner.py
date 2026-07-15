@@ -1,38 +1,46 @@
-import base64
-import json
 import os
+import json
+import google.generativeai as genai
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from google import genai
-from google.genai import types
-
 from app.core.dependencies import get_current_user
+
+# 1. Konfigurasi
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 router = APIRouter(
     prefix="/scanner",
     tags=["Scanner"],
 )
 
-_client = genai.Client(
-    api_key=os.environ["GEMINI_API_KEY"]
-)
+@router.post("/process-image")
+async def process_image(file: UploadFile = File(...)):
+    try:
+        # 2. Baca file
+        image_bytes = await file.read()
+        
+        # 3. Siapkan model
+        # Gunakan 'gemini-1.5-flash' karena 'gemini-2.5-flash' belum tersedia secara umum
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
-response = _client.models.generate_content(
-    model="gemini-2.5-flash",
-    contents=[
-        types.Part.from_bytes(
-            data=image_bytes,
-            mime_type=content_type,
-        ),
-        "Ekstrak semua task dari gambar ini.",
-    ],
-    config=types.GenerateContentConfig(
-        system_instruction=_SYSTEM_PROMPT,
-        response_mime_type="application/json",
-        temperature=0.1,
-    )
-)
+        # 4. Request ke Gemini
+        # Format untuk SDK lama adalah list [teks, blob/data]
+        response = model.generate_content([
+            "Ekstrak semua task dari gambar ini dalam format JSON.",
+            {
+                "mime_type": file.content_type,
+                "data": image_bytes
+            }
+        ])
 
-raw_response = response.text
+        # 5. Parsing hasil
+        # Jika responnya JSON, bersihkan string Markdown (```json ... ```)
+        text = response.text.replace("```json", "").replace("```", "").strip()
+        data = json.loads(text)
+        
+        return data
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 _SYSTEM_PROMPT = """
 Kamu adalah AI Task Scanner untuk aplikasi Smart ADHD Planner.
