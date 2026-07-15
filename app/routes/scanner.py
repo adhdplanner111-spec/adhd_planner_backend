@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from google import genai
 from google.genai import types
@@ -15,24 +16,6 @@ router = APIRouter(
 _client = genai.Client(
     api_key=os.environ["GEMINI_API_KEY"]
 )
-
-response = _client.models.generate_content(
-    model="gemini-2.5-flash",
-    contents=[
-        types.Part.from_bytes(
-            data=image_bytes,
-            mime_type=content_type,
-        ),
-        "Ekstrak semua task dari gambar ini.",
-    ],
-    config=types.GenerateContentConfig(
-        system_instruction=_SYSTEM_PROMPT,
-        response_mime_type="application/json",
-        temperature=0.1,
-    )
-)
-
-raw_response = response.text
 
 _SYSTEM_PROMPT = """
 Kamu adalah AI Task Scanner untuk aplikasi Smart ADHD Planner.
@@ -181,7 +164,7 @@ segera
 deadline
 hari ini
 ASAP
-!!! 
+!!!
 ujian
 presentasi
 sidang
@@ -508,13 +491,14 @@ Jika tidak ditemukan task sama sekali:
 }
 """
 
+
 @router.post("/scan")
 async def scan_image(
     file: UploadFile = File(...),
     user=Depends(get_current_user),
 ):
     """
-    Terima gambar dari Flutter, kirim ke OpenAI Vision (gpt-4o),
+    Terima gambar dari Flutter, kirim ke Gemini Vision,
     kembalikan hasil ekstraksi task terstruktur.
     """
     # Validasi tipe file
@@ -525,7 +509,7 @@ async def scan_image(
             detail="File harus berupa gambar (image/jpeg, image/png, dll)",
         )
 
-    # Baca bytes dan encode base64
+    # Baca bytes
     image_bytes = await file.read()
     if len(image_bytes) > 10 * 1024 * 1024:  # 10 MB limit
         raise HTTPException(
@@ -533,44 +517,31 @@ async def scan_image(
             detail="Ukuran gambar maksimal 10 MB",
         )
 
-    image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-
-    # Normalize media type untuk data URL
-    media_type = content_type if content_type in (
+    # Normalize mime type
+    mime_type = content_type if content_type in (
         "image/jpeg", "image/png", "image/gif", "image/webp"
     ) else "image/jpeg"
 
     try:
-        response = _client.chat.completions.create(
-            model="gpt-4o",
-            max_tokens=1024,
-            messages=[
-                {
-                    "role": "system",
-                    "content": _SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:{media_type};base64,{image_b64}",
-                                "detail": "high",
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": "Ekstrak semua task dari gambar ini.",
-                        },
-                    ],
-                },
+        response = _client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(
+                    data=image_bytes,
+                    mime_type=mime_type,
+                ),
+                "Ekstrak semua task dari gambar ini.",
             ],
+            config=types.GenerateContentConfig(
+                system_instruction=_SYSTEM_PROMPT,
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
         )
 
         raw_response = response.text.strip()
 
-        # Strip markdown fences jika ada
+        # Strip markdown fences jika ada (defensive)
         if raw_response.startswith("```"):
             raw_response = raw_response.split("```")[1]
             if raw_response.startswith("json"):

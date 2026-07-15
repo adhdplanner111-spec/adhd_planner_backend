@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from fastapi import Depends
 from dotenv import load_dotenv
@@ -52,7 +53,10 @@ from app.schemas.admin_user_schema import (
 from app.utils.activity_logger import log_activity
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
 
 router = APIRouter(
     tags=["admin"]
@@ -94,24 +98,36 @@ def admin_login(
     }
 
 @router.post("/admin/transcribe")
-async def transcribe_audio(file: UploadFile = File(...)):
-    # 1. Baca isi file
-    audio_data = await file.read()
-    
-    # 2. Upload ke Gemini
-    audio_file = genai.upload_file(content=audio_data, mime_type=file.content_type)
-    
-    # 3. Minta Gemini buat transkripsi
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content([
-        audio_file, 
-        "Tolong transkripsikan audio ini ke dalam teks."
-    ])
-    
-    # 4. Hapus file sementara
-    genai.delete_file(audio_file.name)
-    
-    return {"text": response.text}
+async def transcribe_audio(
+    file: UploadFile = File(...)
+):
+    try:
+        audio_bytes = await file.read()
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                types.Part.from_bytes(
+                    data=audio_bytes,
+                    mime_type=file.content_type,
+                ),
+                "Transkripsikan audio ini ke dalam teks. Jangan tambahkan penjelasan."
+            ],
+            config=types.GenerateContentConfig(
+                temperature=0,
+            ),
+        )
+
+        return {
+            "success": True,
+            "text": response.text.strip()
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 @router.get("/me")
 def admin_me(
