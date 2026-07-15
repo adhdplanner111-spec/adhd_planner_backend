@@ -1,46 +1,17 @@
 import os
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from app.core.dependencies import get_current_user
 
-# 1. Konfigurasi
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+# Konfigurasi client dengan SDK baru
+_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
 router = APIRouter(
     prefix="/scanner",
     tags=["Scanner"],
 )
-
-@router.post("/process-image")
-async def process_image(file: UploadFile = File(...)):
-    try:
-        # 2. Baca file
-        image_bytes = await file.read()
-        
-        # 3. Siapkan model
-        # Gunakan 'gemini-1.5-flash' karena 'gemini-2.5-flash' belum tersedia secara umum
-        model = genai.GenerativeModel('gemini-1.5-flash')
-
-        # 4. Request ke Gemini
-        # Format untuk SDK lama adalah list [teks, blob/data]
-        response = model.generate_content([
-            "Ekstrak semua task dari gambar ini dalam format JSON.",
-            {
-                "mime_type": file.content_type,
-                "data": image_bytes
-            }
-        ])
-
-        # 5. Parsing hasil
-        # Jika responnya JSON, bersihkan string Markdown (```json ... ```)
-        text = response.text.replace("```json", "").replace("```", "").strip()
-        data = json.loads(text)
-        
-        return data
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 _SYSTEM_PROMPT = """
 Kamu adalah AI Task Scanner untuk aplikasi Smart ADHD Planner.
@@ -526,7 +497,6 @@ async def scan_image(
     Terima gambar dari Flutter, kirim ke Gemini Vision,
     kembalikan hasil ekstraksi task terstruktur.
     """
-    # Validasi tipe file
     content_type = file.content_type or ""
     if not content_type.startswith("image/"):
         raise HTTPException(
@@ -534,7 +504,6 @@ async def scan_image(
             detail="File harus berupa gambar (image/jpeg, image/png, dll)",
         )
 
-    # Baca bytes
     image_bytes = await file.read()
     if len(image_bytes) > 10 * 1024 * 1024:  # 10 MB limit
         raise HTTPException(
@@ -542,7 +511,6 @@ async def scan_image(
             detail="Ukuran gambar maksimal 10 MB",
         )
 
-    # Normalize mime type
     mime_type = content_type if content_type in (
         "image/jpeg", "image/png", "image/gif", "image/webp"
     ) else "image/jpeg"
@@ -566,7 +534,6 @@ async def scan_image(
 
         raw_response = response.text.strip()
 
-        # Strip markdown fences jika ada (defensive)
         if raw_response.startswith("```"):
             raw_response = raw_response.split("```")[1]
             if raw_response.startswith("json"):

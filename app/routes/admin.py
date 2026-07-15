@@ -3,10 +3,6 @@ import os
 from google import genai
 from google.genai import types
 
-from xml.parsers.expat import model
-import google.generativeai as genai
-import os
-
 from fastapi import Depends
 from dotenv import load_dotenv
 from fastapi import APIRouter, UploadFile, File
@@ -58,11 +54,10 @@ from app.utils.activity_logger import log_activity
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
+
 load_dotenv()
 
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 router = APIRouter(
     tags=["admin"]
