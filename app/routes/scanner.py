@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from app.core.dependencies import get_current_user
 
 # Konfigurasi client dengan SDK baru
-_client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+_client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
 
 router = APIRouter(
     prefix="/scanner",

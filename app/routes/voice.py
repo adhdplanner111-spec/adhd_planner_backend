@@ -14,7 +14,7 @@ router = APIRouter(
 )
 
 _client = genai.Client(
-    api_key=os.environ["GEMINI_API_KEY"]
+    api_key=os.environ["GOOGLE_API_KEY"]
 )
 
 _TASK_EXTRACTION_PROMPT = """
