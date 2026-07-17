@@ -1,12 +1,29 @@
 import os
-import smtplib
+import socket
 
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
+import requests
+import urllib3
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+# --- Paksa requests/urllib3 pakai IPv4 saja ---
+# Railway (dan beberapa PaaS lain) mematikan outbound IPv6 secara default.
+# Kalau host tujuan (mis. api.resend.com) punya AAAA record (IPv6),
+# socket akan coba IPv6 dulu dan gagal dengan "Network is unreachable".
+# Patch ini memaksa resolusi DNS hanya mengembalikan alamat IPv4.
+_orig_getaddrinfo = socket.getaddrinfo
+
+
+def _getaddrinfo_ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+    return _orig_getaddrinfo(
+        host, port, socket.AF_INET, type, proto, flags
+    )
+
+
+socket.getaddrinfo = _getaddrinfo_ipv4_only
+# --- akhir patch IPv4 ---
 
 
 def send_otp_email(
@@ -14,12 +31,11 @@ def send_otp_email(
     fullname: str,
     otp: str
 ):
-    sender_email = os.getenv(
-        "EMAIL_HOST_USER"
-    )
+    api_key = os.getenv("RESEND_API_KEY")
 
-    sender_password = os.getenv(
-        "EMAIL_HOST_PASSWORD"
+    sender_email = os.getenv(
+        "RESEND_FROM_EMAIL",
+        "onboarding@resend.dev"
     )
 
     subject = "ADHD Planner - Verifikasi OTP"
@@ -76,45 +92,29 @@ def send_otp_email(
     </html>
     """
 
-    message = MIMEMultipart(
-        "alternative"
-    )
-
-    message["Subject"] = subject
-    message["From"] = sender_email
-    message["To"] = recipient_email
-
-    message.attach(
-        MIMEText(
-            html,
-            "html"
-        )
-    )
-
     try:
-        server = smtplib.SMTP(
-            os.getenv("EMAIL_HOST"),
-            int(
-                os.getenv(
-                    "EMAIL_PORT"
-                )
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": sender_email,
+                "to": [recipient_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=10,
+        )
+
+        if response.status_code >= 400:
+            print(
+                "EMAIL ERROR:",
+                response.status_code,
+                response.text,
             )
-        )
-
-        server.starttls()
-
-        server.login(
-            sender_email,
-            sender_password
-        )
-
-        server.sendmail(
-            sender_email,
-            recipient_email,
-            message.as_string()
-        )
-
-        server.quit()
+            return False
 
         return True
 
