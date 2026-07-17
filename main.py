@@ -11,6 +11,7 @@ from app.routes.focus import router as focus_router
 from app.routes.analytics import router as analytics_router
 from app.routes.admin import router as admin_router
 from app.routes.profile import router as profile_router
+from app.routes.account import router as account_router
 
 load_dotenv()
 
@@ -52,6 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(analytics_router)
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
     app.include_router(profile_router)
+    app.include_router(account_router) 
 
     @app.get("/")
     def root():

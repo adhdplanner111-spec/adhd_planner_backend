@@ -15,6 +15,7 @@ from app.routes.profile import router as profile_router
 
 from app.routes.scanner import router as scanner_router
 from app.routes.voice import router as voice_router       # ← TAMBAH INI
+from app.routes.account import router as account_router   # ← TAMBAH INI (data deletion)
 from app.core.config import config
 
 def create_app() -> FastAPI:
@@ -46,6 +47,7 @@ def create_app() -> FastAPI:
     app.include_router(profile_router)
     app.include_router(scanner_router)
     app.include_router(voice_router)                      # ← TAMBAH INI
+    app.include_router(account_router)                    # ← TAMBAH INI (data deletion)
 
     return app
 
